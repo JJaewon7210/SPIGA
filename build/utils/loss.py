@@ -98,7 +98,7 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
            dists: nme of each data in this batch (size [batch])
     '''
     nme = 0
-    dists = torch.Tensor(num_landmarks).zero_()
+    dists = torch.Tensor(pred_heatmaps.shape[0]).zero_()
     pred_landmarks, _ = get_preds_fromhm(pred_heatmaps)
     pred_landmarks = pred_landmarks.numpy()
     gt_landmarks = gt_landmarks.numpy()

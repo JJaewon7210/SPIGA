@@ -163,7 +163,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         # update history
         losses.update(loss.item(), batch_size)
-        acces.update(acc, batch_size)
+        acces.update(acc/batch_size, batch_size)
 
         batch_time.update(time.time() - end)
         end = time.time()
@@ -242,7 +242,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
         all_accs[i * batch_size:(i + 1) * batch_size] = acc[0]
         losses.update(loss.item(), batch_size)
-        acces.update(acc[0], batch_size)
+        acces.update(acc/batch_size, batch_size)
         batch_time.update(time.time() - end)
         end = time.time()
         bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
