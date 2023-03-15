@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 # Paths
-weights_path_dft = 'spiga/models/weights'
+weights_path_dft = 'models/weights'
 
 import inference.pretreatment as pretreat
 from models.spiga import SPIGA
@@ -62,16 +62,22 @@ class SPIGAFramework:
         return
         
     def train(self, visual_cnn = True, pose_fc = True, gcn = True):
-        # fine tunning the gcn model
         
+        # fine tunning the landmark detection model
         for child in self.model.visual_cnn.children():
             for param in child.parameters():
                 param.requires_grad = visual_cnn
-                
+
+        # fine tunning the pose estimation model
+        for child in self.model.visual_cnn.hgs_core.children():
+            for param in child.parameters():
+                param.requires_grad = pose_fc
+        
         for child in self.model.pose_fc.children():
             for param in child.parameters():
                 param.requires_grad = pose_fc
         
+        # fine tunning the gcn model
         for child in self.model.gcn.children():
             for param in child.parameters():
                 param.requires_grad = gcn
