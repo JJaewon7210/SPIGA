@@ -37,12 +37,12 @@ def main():
     best_auc = 0.
 
     # set checkpoint path
-    if not os.path.exists('build/checkpoint/'):
-        os.makedirs('build/checkpoint/')
+    if not os.path.exists('build/checkpoint/backbone/'):
+        os.makedirs('build/checkpoint/backbone/')
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/', 'log.txt'), title='sftl54')
+        'build/checkpoint/backbone/', 'log.txt'), title='sftl54')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
@@ -74,16 +74,16 @@ def main():
         optimizer, milestones=[100], gamma=0.1)
 
     # epoch
+    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
+        logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
         if epoch != 0 and (epoch+1) % 10 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
-            logger.append([int(epoch + 1), lr, train_loss,
-                        valid_loss, train_acc, valid_acc, valid_auc])
 
             is_best = valid_auc >= best_auc
             best_auc = max(valid_auc, best_auc)
@@ -95,7 +95,7 @@ def main():
                     'optimizer': optimizer.state_dict(),
                 },
                 is_best=is_best,
-                checkpoint='build/checkpoint/',
+                checkpoint='build/checkpoint/backbone/',
                 snapshot=True
             )
 
@@ -152,7 +152,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnds = get_preds_fromhm(hmap.cpu())
+            lnds, _ = get_preds_fromhm(hmap.cpu())
             lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
             lnds = torch.stack(lnds)
             loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
@@ -231,7 +231,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
 
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnds = get_preds_fromhm(hmap.cpu())
+            lnds, _ = get_preds_fromhm(hmap.cpu())
             lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
             lnds = torch.stack(lnds)
             loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
@@ -263,9 +263,9 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     mean_error = torch.mean(all_dists)
 
     # This is auc of predicted maps and target.
-    auc = calc_metrics(all_dists, path='build/checkpoint/')
+    auc = calc_metrics(all_dists, path='build/checkpoint/backbone/')
     print(
-        "=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error, auc))
+        "=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
 
     return losses.avg, acces.avg, auc, all_dists
 
