@@ -39,6 +39,9 @@ class AlignConfig:
         if mode == 'train':
             self.aug_names = ['flip', 'rotate_scale', 'occlusion',
                               'lighting', 'blur', 'heatmaps2D', 'boundaries']
+        elif mode == 'test':
+            self.aug_names = ['heatmaps2D', 'boundaries']
+            self.shuffle = False
         else:
             self.aug_names = []
             self.shuffle = False

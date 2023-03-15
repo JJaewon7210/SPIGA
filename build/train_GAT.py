@@ -1,3 +1,7 @@
+'''
+Once the model is trained, we freeze the backbone to train the GAT regressor.
+'''
+
 from utils.logger import Logger, savefig
 from utils.loss import AdaptiveWingLoss, get_preds_fromhm, fan_NME
 from utils.evaluation import accuracy, AverageMeter, calc_metrics, calc_dists
@@ -32,8 +36,8 @@ def main():
     best_auc = 0.
 
     # set checkpoint path
-    if not os.path.exists('build/checkpoint/'):
-        os.makedirs('build/checkpoint/')
+    if not os.path.exists('build/checkpoint/GAT/'):
+        os.makedirs('build/checkpoint/GAT/')
 
     # set logger
     logger = Logger(os.path.join(
@@ -43,7 +47,7 @@ def main():
 
     # data config
     trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='train')
+    valConfig = AlignConfig(database_name='sftl54', mode='test')
 
     # dataloader
     trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
@@ -55,7 +59,7 @@ def main():
 
     # model
     processor = SPIGAFramework(modelConfig)
-    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
+    processor.train(visual_cnn=False, pose_fc=False, gcn=True)
 
     # multi processing
     processor.multiprocessing()
@@ -71,28 +75,28 @@ def main():
     # epoch
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
-        train_loss, train_acc = train(
-            trainloader, processor, criterion, optimizer, scheduler)
-        with torch.no_grad():
-            valid_loss, valid_acc, valid_auc, all_accs = validate(
-                valloader, processor, criterion)
+        train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
+        
+        if epoch != 0 and (epoch+1) % 10 == 0:
+            with torch.no_grad():
+                valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
-        logger.append([int(epoch + 1), lr, train_loss,
-                      valid_loss, train_acc, valid_acc, valid_auc])
+            logger.append([int(epoch + 1), lr, train_loss,
+                        valid_loss, train_acc, valid_acc, valid_auc])
 
-        is_best = valid_auc >= best_auc
-        best_auc = max(valid_auc, best_auc)
-        save_checkpoint(
-            state={
-                'epoch': epoch+1,
-                'state_dict': processor.model.state_dict(),
-                'best_acc': best_auc,
-                'optimizer': optimizer.state_dict(),
-            },
-            is_best=is_best,
-            checkpoint='build/checkpoint/',
-            snapshot=10
-        )
+            is_best = valid_auc >= best_auc
+            best_auc = max(valid_auc, best_auc)
+            save_checkpoint(
+                state={
+                    'epoch': epoch+1,
+                    'state_dict': processor.model.state_dict(),
+                    'best_acc': best_auc,
+                    'optimizer': optimizer.state_dict(),
+                },
+                is_best=is_best,
+                checkpoint='build/checkpoint/GAT/',
+                snapshot=True
+            )
 
 
 def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=False, flip=False):
@@ -101,7 +105,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     losses = AverageMeter()
     acces = AverageMeter()
 
-    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
+    processor.train(visual_cnn=False, pose_fc=False, gcn=True)
     gc.collect()
     torch.cuda.empty_cache()
     end = time.time()
@@ -113,8 +117,6 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         image = sample['image'].numpy()
         landmarks = sample['landmarks'].numpy()
         bbox = sample['bbox'].numpy()
-        heatmap2D = sample['heatmap2D'].numpy()
-        boundaries = sample['boundary'].numpy()
 
         # batch_size
         batch_size = np.shape(image)[0]
@@ -132,18 +134,11 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
-        target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
-        target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
         features, outputs = processor.pred(image, bbox)
 
         loss = 0
-        # Awing losses applied to the point and edges heatmaps. weight = 50
-        for idx, hmap in enumerate(outputs['HeatmapPoints']):
-            loss += 2**(idx)*criterion[1](hmap, target_heatmap2D) * 50
-        for idx, hmap in enumerate(outputs['HeatmapEdges']):
-            loss += 2**(idx)*criterion[1](hmap, target_boundaries) * 50
             
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
@@ -203,16 +198,12 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         image = sample['image'].numpy()
         landmarks = sample['landmarks'].numpy()
         bbox = sample['bbox'].numpy()
-        heatmap2D = sample['heatmap2D'].numpy()
-        boundaries = sample['boundary'].numpy()
 
         # batch_size
         batch_size = np.shape(image)[0]
 
         #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
-        target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
-        target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
         features, outputs = processor.pred(image, bbox)
@@ -240,7 +231,6 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
-        all_accs[i * batch_size:(i + 1) * batch_size] = acc[0]
         losses.update(loss.item(), batch_size)
         acces.update(acc/batch_size, batch_size)
         batch_time.update(time.time() - end)
@@ -259,11 +249,11 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     mean_error = torch.mean(all_dists)
 
     # This is auc of predicted maps and target.
-    auc = calc_metrics(all_dists, path='build/checkpoint/')
+    auc = calc_metrics(all_dists, path='build/checkpoint/GAT/')
     print(
-        "=> Mean Error: {:.2f}, AUC@0.08: {} based on maps".format(mean_error*100., auc))
+        "=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
 
-    return losses.avg, acces.avg, auc, all_accs
+    return losses.avg, acces.avg, auc, all_dists
 
 
 if __name__ == '__main__':
