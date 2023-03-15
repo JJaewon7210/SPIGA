@@ -147,12 +147,13 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnd = get_preds_fromhm(hmap)
-            loss += 2**(idx)*criterion[0](lnd, target_landmarks) * 4
+            lnds = get_preds_fromhm(hmap.cpu())
+            lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
+            lnds = torch.stack(lnds)
+            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
             
-
         # Calculate acc
-        acc, _ = accuracy(lnd.cpu(), target_landmarks.cpu(),idx=range(1, 69, 1), thr=0.08)
+        acc, _ = accuracy(lnds.cpu(), target_landmarks.cpu(),idxs=range(1, 69, 1), thr=0.08)
 
         # update processor
         optimizer.zero_grad()
@@ -216,7 +217,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         loss = 0
         for lnd in features['landmarks']:
             loss += criterion(lnd, target_landmarks)
-        acc, batch_dists = accuracy(lnd.cpu(), target_landmarks.cpu(), idx=range(1, 69, 1), thr=0.08)
+        acc, batch_dists = accuracy(lnd.cpu(), target_landmarks.cpu(), idxs=range(1, 69, 1), thr=0.08)
 
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
