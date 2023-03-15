@@ -1,5 +1,5 @@
 from utils.logger import Logger, savefig
-from utils.loss import AdaptiveWingLoss, get_preds_fromhm
+from utils.loss import AdaptiveWingLoss, get_preds_fromhm, fan_NME
 from utils.evaluation import accuracy, AverageMeter, calc_metrics, calc_dists
 from utils.misc import save_checkpoint
 import sys
@@ -152,8 +152,8 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             lnds = torch.stack(lnds)
             loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
             
-        # Calculate acc
-        acc, _ = accuracy(lnds.cpu(), target_landmarks.cpu(),idxs=range(1, 69, 1), thr=0.08)
+        # Calculate acc (sum of nme for this batch)
+        acc, _ = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
 
         # update processor
         optimizer.zero_grad()
@@ -163,7 +163,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         # update history
         losses.update(loss.item(), batch_size)
-        acces.update(acc[0], batch_size)
+        acces.update(acc, batch_size)
 
         batch_time.update(time.time() - end)
         end = time.time()
@@ -203,22 +203,41 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         image = sample['image'].numpy()
         landmarks = sample['landmarks'].numpy()
         bbox = sample['bbox'].numpy()
+        heatmap2D = sample['heatmap2D'].numpy()
+        boundaries = sample['boundary'].numpy()
 
         # batch_size
         batch_size = np.shape(image)[0]
 
-        #  target to torch
+        #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
+        target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
+        target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
         features, outputs = processor.pred(image, bbox)
 
-        # calculate loss and acc
         loss = 0
-        for lnd in features['landmarks']:
-            loss += criterion(lnd, target_landmarks)
-        acc, batch_dists = accuracy(lnd.cpu(), target_landmarks.cpu(), idxs=range(1, 69, 1), thr=0.08)
+        # Awing losses applied to the point and edges heatmaps. weight = 50
+        for idx, hmap in enumerate(outputs['HeatmapPoints']):
+            loss += 2**(idx)*criterion[1](hmap, target_heatmap2D) * 50
+        for idx, hmap in enumerate(outputs['HeatmapEdges']):
+            loss += 2**(idx)*criterion[1](hmap, target_boundaries) * 50
 
+        # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
+        for idx, hmap in enumerate(outputs['HeatmapPreds']):
+            lnds = get_preds_fromhm(hmap.cpu())
+            lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
+            lnds = torch.stack(lnds)
+            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
+
+        # Calculate acc (sum of nme for this batch)
+        acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
+
+        # update history
+        losses.update(loss.item(), batch_size)
+        acces.update(acc, batch_size)
+        
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
         all_accs[i * batch_size:(i + 1) * batch_size] = acc[0]

@@ -95,13 +95,15 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
            gt_landmarks: torch tesnsor of size [batch, points, x, y]
        Returns:
            nme: sum of nme for this batch
+           dists: nme of each data in this batch (size [batch])
     '''
     nme = 0
+    dists= []
     pred_landmarks, _ = get_preds_fromhm(pred_heatmaps)
     pred_landmarks = pred_landmarks.numpy()
     gt_landmarks = gt_landmarks.numpy()
     for i in range(pred_landmarks.shape[0]):
-        pred_landmark = pred_landmarks[i] * 4.0
+        pred_landmark = pred_landmarks[i] # * 4.0
         gt_landmark = gt_landmarks[i]
 
         if num_landmarks == 68:
@@ -119,9 +121,12 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
         elif num_landmarks == 29:
             # norm_factor = np.linalg.norm(gt_landmark[8]- gt_landmark[9])
             norm_factor = np.linalg.norm(gt_landmark[16] - gt_landmark[17])
-        nme += (np.sum(np.linalg.norm(pred_landmark - gt_landmark,
+        dist = (np.sum(np.linalg.norm(pred_landmark - gt_landmark,
                 axis=1)) / pred_landmark.shape[0]) / norm_factor
-    return nme
+        dists.append(dist)
+        nme += dist
+        
+    return nme, dists
 
 class AdaptiveWingLoss(nn.Module):
     def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
