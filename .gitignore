@@ -20,7 +20,7 @@ tmp
 **/venv
 
 # Dataset images
-/spiga/data/databases
+/data/databases
 
 # Results
 /results
