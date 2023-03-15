@@ -1,0 +1,30 @@
+*.pyc
+*__pycache__*
+*core.*
+_ext
+tmp
+*.o*
+*~
+*.idea
+*.mp4
+*.avi
+*.h5
+*.pt
+*.egg-info
+
+# Build
+/dist
+/build/checkpoint
+
+# Virtual enviroment
+**/venv
+
+# Dataset images
+/spiga/data/databases
+
+# Results
+/results
+
+# Test
+accuracy.py
+app.py
