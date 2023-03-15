@@ -1,18 +1,15 @@
+from utils.logger import Logger, savefig
+from utils.loss import AdaptiveWingLoss, get_preds_fromhm
+from utils.evaluation import accuracy, AverageMeter, calc_metrics, calc_dists
+from utils.misc import save_checkpoint
 import sys
-sys.path.insert(0, '../build')
+sys.path.insert(0, '../SPIGA')
 
-from build.utils.logger import Logger, savefig
-from build.utils.imutils import *
-# from build.utils.transforms import *
-from build.utils.evaluation import accuracy, AverageMeter, final_preds, calc_metrics, calc_dists, save_acc
-from build.utils.misc import adjust_learning_rate, save_checkpoint, save_pred
 from data.loaders.dl_config import AlignConfig
 from data.loaders.dataloader import get_dataloader
 from inference.framework import SPIGAFramework
 from inference.config import ModelConfig
 import gc
-import torch.nn.parallel
-import torch.optim
 import torch
 import numpy as np
 import openpyxl
@@ -49,8 +46,7 @@ def main():
     valConfig = AlignConfig(database_name='sftl54', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(
-        batch_size=8, data_config=trainConfig)
+    trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
 
     # model config
@@ -65,7 +61,7 @@ def main():
     processor.multiprocessing()
 
     # criterion
-    criterion = torch.nn.SmoothL1Loss().cuda()
+    criterion = [torch.nn.SmoothL1Loss().cuda(), AdaptiveWingLoss().cuda()]
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
@@ -117,6 +113,8 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         image = sample['image'].numpy()
         landmarks = sample['landmarks'].numpy()
         bbox = sample['bbox'].numpy()
+        heatmap2D = sample['heatmap2D'].numpy()
+        boundaries = sample['boundary'].numpy()
 
         # batch_size
         batch_size = np.shape(image)[0]
@@ -132,18 +130,29 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         #     cv2.imshow('img',img)
         #     cv2.waitKey(0)
 
-        #  target to torch
-        target_var = processor._data2device(torch.from_numpy(landmarks))
+        #  target to torch.cuda
+        target_landmarks = processor._data2device(torch.from_numpy(landmarks))
+        target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
+        target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
         features, outputs = processor.pred(image, bbox)
 
-        # calculate loss and acc
         loss = 0
-        for lnd in features, outputs['landmarks']:
-            loss += criterion(lnd, target_var)
-        acc, _ = accuracy(lnd.cpu(), target_var.cpu(),
-                          idx=range(1, 69, 1), thr=0.08, heatmap=False)
+        # Awing losses applied to the point and edges heatmaps. weight = 50
+        for idx, hmap in enumerate(outputs['HeatmapPoints']):
+            loss += 2**(idx)*criterion[1](hmap, target_heatmap2D) * 50
+        for idx, hmap in enumerate(outputs['HeatmapEdges']):
+            loss += 2**(idx)*criterion[1](hmap, target_boundaries) * 50
+            
+        # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
+        for idx, hmap in enumerate(outputs['HeatmapPreds']):
+            lnd = get_preds_fromhm(hmap)
+            loss += 2**(idx)*criterion[0](lnd, target_landmarks) * 4
+            
+
+        # Calculate acc
+        acc, _ = accuracy(lnd.cpu(), target_landmarks.cpu(),idx=range(1, 69, 1), thr=0.08)
 
         # update processor
         optimizer.zero_grad()
@@ -198,7 +207,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         batch_size = np.shape(image)[0]
 
         #  target to torch
-        target_var = processor._data2device(torch.from_numpy(landmarks))
+        target_landmarks = processor._data2device(torch.from_numpy(landmarks))
 
         # output
         features, outputs = processor.pred(image, bbox)
@@ -206,9 +215,8 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         # calculate loss and acc
         loss = 0
         for lnd in features['landmarks']:
-            loss += criterion(lnd, target_var)
-        acc, batch_dists = accuracy(lnd.cpu(), target_var.cpu(
-        ), idx=range(1, 69, 1), thr=0.08, heatmap=False)
+            loss += criterion(lnd, target_landmarks)
+        acc, batch_dists = accuracy(lnd.cpu(), target_landmarks.cpu(), idx=range(1, 69, 1), thr=0.08)
 
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
