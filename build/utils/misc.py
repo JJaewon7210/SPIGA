@@ -39,18 +39,3 @@ def save_checkpoint(state,
 
     if is_best:
         shutil.copyfile(filepath, os.path.join(checkpoint, 'model_best.pth.tar'))
-
-
-def save_pred(preds, accs, checkpoint='checkpoint', filename='preds_valid.mat'):
-    preds = to_numpy(preds)
-    accs = to_numpy(accs)
-    filepath = os.path.join(checkpoint, filename)
-    scipy.io.savemat(filepath, mdict={'preds': preds, 'accs': accs})
-
-def adjust_learning_rate(optimizer, epoch, lr, schedule, gamma):
-    """Sets the learning rate to the initial LR decayed by schedule"""
-    if epoch in schedule:
-        lr *= gamma
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-    return lr

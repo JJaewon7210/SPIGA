@@ -25,7 +25,7 @@ class SPIGA(nn.Module):
         self.num_edges = num_edges
 
         # Initialize backbone
-        self.visual_cnn = MultitaskCNN(num_landmarks=self.num_landmarks, num_edges=self.num_edges)
+        self.visual_cnn = MultitaskCNN(num_landmarks=self.num_landmarks, num_edges=self.num_edges, pose_req=True)
         # Features dimensions
         self.img_res = self.visual_cnn.img_res
         self.visual_res = self.visual_cnn.out_res

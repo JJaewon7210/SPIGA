@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from random import randint
 
 from .misc import *
-from .transforms import transform, transform_preds
 
 __all__ = ['accuracy', 'AverageMeter']
 
@@ -16,6 +15,9 @@ def get_preds(scores):
         return type: torch.LongTensor
     '''
     assert scores.dim() == 4, 'Score maps should be 4-dim'
+    # batch, chn, height, width ===> batch, chn, height*width
+    # chn = 68
+    # height*width = score_map
     maxval, idx = torch.max(scores.view(scores.size(0), scores.size(1), -1), 2)
 
     maxval = maxval.view(scores.size(0), scores.size(1), 1)
@@ -24,6 +26,9 @@ def get_preds(scores):
     preds = idx.repeat(1, 1, 2).float()
 
     # batchsize * numPoints * 2
+    # 0 is x coord
+    # 1 is y coord
+    # shape = batchsize, numPoints, 2
     preds[:, :, 0] = (preds[:, :, 0] - 1) % scores.size(3) + 1
     preds[:, :, 1] = torch.floor((preds[:, :, 1] - 1) / scores.size(2)) + 1
 
@@ -35,6 +40,7 @@ def get_preds(scores):
 def calc_dists(preds, target, normalize):
     preds = preds.float()
     target = target.float()
+    # dists = 68 x batch
     dists = torch.zeros(preds.size(1), preds.size(0))
     for n in range(preds.size(0)):
         for c in range(preds.size(1)):
@@ -58,7 +64,6 @@ def calc_metrics(dists, path='', category=''):
     axes1 = np.linspace(0, 1, 1000)
     axes2 = np.zeros(1000)
     for i in range(1000):
-        #axes2[i] = (errors < axes1[i]).sum() / float(errors.size(0))
         axes2[i] = float((errors < axes1[i]).sum()) / float(errors.size(0))
 
     auc = round(np.sum(axes2[:70]) / .7, 2)
@@ -85,14 +90,13 @@ def calc_metrics(dists, path='', category=''):
             plt.plot(axes1 * 100, axes2 * 100, 'b-', label=label, lw=3)
         plt.legend(loc=4, fontsize=12)
 
-        plt.savefig(os.path.join(path + '/CED.eps'))
         plt.savefig(os.path.join(path + '/CED.jpg'))
     return auc
 
-def save_acc(acc,path=''):
-    return
 
 def _get_bboxsize(iterable):
+    # iterable = 68 x 2
+    # torch.min return values, idxs
     mins = torch.min(iterable, 0)[0].view(2)
     maxs = torch.max(iterable, 0)[0].view(2)
 
@@ -103,21 +107,17 @@ def _get_bboxsize(iterable):
     return np.sqrt(abs(maxs[0] - mins[0]) * abs(maxs[1] - mins[1]))
 
 
-def accuracy(output, target, idxs, thr=0.08, heatmap=True):
+def accuracy(output, target, idxs, thr=0.08):
     ''' Calculate accuracy according to NME, but uses ground truth heatmap rather than x,y locations
     First value to be returned is accuracy calculated based on overall 'idxs'
     followed by individual accuracies
     '''
-    if heatmap==True:
-        preds = get_preds(output)
-        gts = get_preds(target)
-        
-    elif heatmap==False:
-        preds = output.view(output.size(0),68,2)
-        gts = target.view(target.size(0),68,2)
-        
+    # preds = batch, 68, 64, 64
+    preds = get_preds(output)
+    gts = get_preds(target)
     # B * 2
     norm = torch.ones(preds.size(0))
+    # use face bbox to normalize
     for i, gt in enumerate(gts):
         norm[i] = _get_bboxsize(gt)
 
@@ -138,36 +138,6 @@ def accuracy(output, target, idxs, thr=0.08, heatmap=True):
     # if cnt != 0:
     #     acc[0] = avg_acc / cnt
     return acc, dists
-
-
-def final_preds(output, center, scale, reference_scale, res):
-    if output.size(1) == 136:
-        coords = output.view((output.szie(0), 68, 2))
-    else:
-        coords = get_preds(output)  # float type
-
-    '''
-    # pose-processing
-    for n in range(coords.size(0)):
-        for p in range(coords.size(1)):
-            hm = output[n][p]
-            px = int(math.floor(coords[n][p][0]))
-            py = int(math.floor(coords[n][p][1]))
-            if px > 1 and px < res[0] and py > 1 and py < res[1]:
-                diff = torch.Tensor(
-                    [hm[py - 1][px] - hm[py - 1][px - 2], hm[py][px - 1] - hm[py - 2][px - 1]])
-                coords[n][p] += diff.sign() * .25
-    coords += 0.5
-    '''
-    preds = coords.clone()
-
-    # Transform back
-    for i in range(coords.size(0)):
-        preds[i] = transform_preds(coords[i], center[i], scale[i], reference_scale[i], res)
-
-    if preds.dim() < 3:
-        preds = preds.view(1, preds.size())
-    return preds
 
 
 class AverageMeter(object):
