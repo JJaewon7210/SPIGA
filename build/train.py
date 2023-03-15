@@ -43,7 +43,7 @@ def main():
 
     # data config
     trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='test')
+    valConfig = AlignConfig(database_name='sftl54', mode='train')
 
     # dataloader
     trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
