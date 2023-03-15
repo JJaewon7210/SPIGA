@@ -3,8 +3,8 @@ import json
 from collections import OrderedDict
 
 # Default data paths
-db_img_path = 'spiga/data/databases'
-db_anns_path = 'spiga/data/annotations' + "/{database}/{file_name}.json"
+db_img_path = 'data/databases'
+db_anns_path = 'data/annotations' + "/{database}/{file_name}.json"
 
 class AlignConfig:
 
@@ -17,7 +17,7 @@ class AlignConfig:
         self.image_dir = None   # Set at self._update_database()
         self._update_database()
         self.image_size = (256, 256)
-        self.ftmap_size = (256, 256)
+        self.ftmap_size = (64, 64)# (256, 256)
 
         # Dataloaders
         self.ids = None         # List of a subset if need it
@@ -37,7 +37,8 @@ class AlignConfig:
         # Data augmentation
         # Control augmentations with the following list, crop to self.img_size is mandatory, check target_dist param.
         if mode == 'train':
-            self.aug_names = ['flip', 'rotate_scale', 'occlusion', 'lighting', 'blur']
+            self.aug_names = ['flip', 'rotate_scale', 'occlusion',
+                              'lighting', 'blur', 'heatmaps2D', 'boundaries']
         else:
             self.aug_names = []
             self.shuffle = False
@@ -147,7 +148,7 @@ class DatabaseStruct:
                 ldm_edges_matrix = db_info['ldm_edges_matrix']
 
         else:
-            raise ValueError('Database ' + database_name + 'specifics not defined. Missing db_info.json')
+            raise ValueError('Database ' + database_name + ' specifics not defined. Missing db_info.json')
 
         return ldm_ids, ldm_flip_order, ldm_edges_matrix
 
