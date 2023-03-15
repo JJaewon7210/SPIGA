@@ -55,7 +55,7 @@ def main():
 
     # model
     processor = SPIGAFramework(modelConfig)
-    processor.train(visual_cnn=True, pose_fc=True, gcn=True)
+    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
 
     # multi processing
     processor.multiprocessing()
@@ -101,7 +101,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     losses = AverageMeter()
     acces = AverageMeter()
 
-    processor.train(visual_cnn=True, pose_fc=True, gcn=True)
+    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
     gc.collect()
     torch.cuda.empty_cache()
     end = time.time()
