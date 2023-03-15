@@ -43,7 +43,7 @@ def main():
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/', 'log.txt'), title='sftl54')
+        'build/checkpoint/MTN/', 'log.txt'), title='sftl54')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
@@ -52,7 +52,7 @@ def main():
     valConfig = AlignConfig(database_name='sftl54', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
+    trainloader, trainset = get_dataloader(batch_size=24, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
 
     # model config
@@ -74,17 +74,18 @@ def main():
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[100], gamma=0.1)
 
+    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     # epoch
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
+        logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
+
         if epoch != 0 and (epoch+1) % 10 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
-            logger.append([int(epoch + 1), lr, train_loss,
-                        valid_loss, train_acc, valid_acc, valid_auc])
 
             is_best = valid_auc >= best_auc
             best_auc = max(valid_auc, best_auc)
@@ -141,7 +142,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
         target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
         target_boundaries = processor._data2device(torch.from_numpy(boundaries))
-        target_pose = processor._data2device(torch.from_numpy(pose))
+        target_pose = processor._data2device(torch.from_numpy(pose).float())
 
         # output
         features, outputs = processor.pred(image, bbox)
@@ -155,13 +156,13 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnds = get_preds_fromhm(hmap.cpu())
+            lnds, _ = get_preds_fromhm(hmap.cpu())
             lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
             lnds = torch.stack(lnds)
             loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
         
         # L2 loss computed for the pose estimation
-        for idx, pose in enumerate(outputs['Pose']):
+        for idx, pose in enumerate(outputs['Poses']):
             loss += 2**(idx)*criterion[2](pose, target_pose)
         
         # Calculate acc (sum of nme for this batch)
@@ -174,7 +175,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         scheduler.step()
 
         # update history
-        losses.update(loss.item(), batch_size)
+        losses.update(loss.item()/batch_size, batch_size)
         acces.update(acc/batch_size, batch_size)
 
         batch_time.update(time.time() - end)
@@ -251,14 +252,10 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
             
         # Calculate acc (sum of nme for this batch)
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
-
-        # update history
-        losses.update(loss.item(), batch_size)
-        acces.update(acc, batch_size)
         
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
-        losses.update(loss.item(), batch_size)
+        losses.update(loss.item()/batch_size, batch_size)
         acces.update(acc/batch_size, batch_size)
         batch_time.update(time.time() - end)
         end = time.time()
