@@ -98,7 +98,7 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
            dists: nme of each data in this batch (size [batch])
     '''
     nme = 0
-    dists= []
+    dists = torch.Tensor(num_landmarks).zero_()
     pred_landmarks, _ = get_preds_fromhm(pred_heatmaps)
     pred_landmarks = pred_landmarks.numpy()
     gt_landmarks = gt_landmarks.numpy()
@@ -123,7 +123,7 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
             norm_factor = np.linalg.norm(gt_landmark[16] - gt_landmark[17])
         dist = (np.sum(np.linalg.norm(pred_landmark - gt_landmark,
                 axis=1)) / pred_landmark.shape[0]) / norm_factor
-        dists.append(dist)
+        dists[i] = dist
         nme += dist
         
     return nme, dists
