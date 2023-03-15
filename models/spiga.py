@@ -108,6 +108,15 @@ class SPIGA(nn.Module):
         pose = self.pose_fc(pose)
         features['Pose'] = pose.clone()
 
+        # Pose detection
+        features['Poses'] = []
+        for pose_raw in features['HGcore']:
+            B, L, _, _ = pose_raw.shape
+            pose = pose_raw.reshape(B, L)
+            pose = self.pose_fc(pose)
+            features['Poses'].append(pose.clone())
+
+
         # Project model 3D
         euler = pose[:, 0:3]
         trl = pose[:, 3:]
