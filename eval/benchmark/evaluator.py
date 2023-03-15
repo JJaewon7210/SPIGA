@@ -2,7 +2,7 @@ import json
 from collections import OrderedDict
 
 # Paths
-data_path = 'spiga/data/annotations'
+data_path = 'data/annotations'
 
 def main():
 

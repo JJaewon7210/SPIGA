@@ -53,7 +53,7 @@ class Tester:
 
         # Results
         self.data_struc = {'imgpath': str, 'bbox': None, 'headpose': None, 'ids': None, 'landmarks': None, 'visible': None}
-        self.result_path = 'spiga/eval/results'
+        self.result_path = 'eval/results'
         self.result_file = '/results_%s_%s.json' % (self.database, self.anns_type)
         self.file_out = self.result_path + self.result_file
 

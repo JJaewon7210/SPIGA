@@ -6,7 +6,7 @@ import cv2
 from data.loaders.augmentors.utils import rotation_matrix_to_euler
 
 # Model file nomenclature
-model_file_dft = 'spiga/data/models3D' + '/mean_face_3D_{num_ldm}.txt'
+model_file_dft = 'data/models3D' + '/mean_face_3D_{num_ldm}.txt'
 
 
 class PositPose:
