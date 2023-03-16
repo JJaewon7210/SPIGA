@@ -1,7 +1,7 @@
 '''
 Fine-tune with both tasks, pose and landmarks
 In this stage, landmark detection and pose estimation module is trained 
-based on the pretrained backbone architecture (HG).
+based on the pretrained MTN architecture (HG).
 '''
 
 from utils.logger import Logger, savefig
@@ -175,7 +175,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # update history
         losses.update(loss.item()/batch_size, batch_size)
         acces.update(acc/batch_size, batch_size)
-
+                        
         batch_time.update(time.time() - end)
         end = time.time()
         bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f} | LR: {lr: .7f}'.format(
@@ -194,7 +194,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     return losses.avg, acces.avg
 
 
-def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=False):
+def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -204,10 +204,11 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     processor.model.eval()
     gc.collect()
     torch.cuda.empty_cache()
-
+    if debug:
+        random_int = np.random.randint(low=1, high=len(loader)-1)
+        
     bar = Bar('Validating', max=len(loader))
     all_dists = torch.zeros((68, loader.dataset.__len__()))
-    all_accs = torch.zeros(loader.dataset.__len__())
     for i, sample in enumerate(loader):
         data_time.update(time.time() - end)
 
@@ -249,10 +250,23 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         # Calculate acc (sum of nme for this batch)
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
+        # Debug
+        if debug & (random_int == i):
+            for k, img, hmap in enumerate(zip(image, outputs['HeatmapPreds'])):
+                lnds, _ = get_preds_fromhm(hmap.cpu())
+                lnds = lnds.numpy()
+                for num in range(68):
+                    x = int(lnds[num, 0])
+                    y = int(lnds[num, 1])
+                    img = cv2.circle(img, (x, y), 2, (255, 0, 0),
+                                     cv2.FILLED, cv2.LINE_4)
+                cv2.imwrite(f'build/checkpoint/MTN/{k}.png', img)
+                
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
         losses.update(loss.item()/batch_size, batch_size)
         acces.update(acc/batch_size, batch_size)
+        
         batch_time.update(time.time() - end)
         end = time.time()
         bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(

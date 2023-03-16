@@ -73,16 +73,16 @@ def main():
         optimizer, milestones=[100], gamma=0.1)
 
     # epoch
+    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
+        logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
         if epoch != 0 and (epoch+1) % 10 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
-            logger.append([int(epoch + 1), lr, train_loss,
-                        valid_loss, train_acc, valid_acc, valid_auc])
 
             is_best = valid_auc >= best_auc
             best_auc = max(valid_auc, best_auc)
@@ -140,7 +140,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         loss = 0
             
-        # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
+        # Smooth L1 function for GAT layers.
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
             lnds = get_preds_fromhm(hmap.cpu())
             lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
@@ -178,7 +178,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     return losses.avg, acces.avg
 
 
-def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=False):
+def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -188,10 +188,11 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     processor.model.eval()
     gc.collect()
     torch.cuda.empty_cache()
-
+    if debug: 
+        random_int = np.random.randint(low=1, high=len(loader)-1)
+    
     bar = Bar('Validating', max=len(loader))
     all_dists = torch.zeros((68, loader.dataset.__len__()))
-    all_accs = torch.zeros(loader.dataset.__len__())
     for i, sample in enumerate(loader):
         data_time.update(time.time() - end)
 
@@ -218,21 +219,28 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
             lnds = get_preds_fromhm(hmap.cpu())
-            lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
-            lnds = torch.stack(lnds)
             loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
 
         # Calculate acc (sum of nme for this batch)
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
-
-        # update history
-        losses.update(loss.item(), batch_size)
-        acces.update(acc, batch_size)
         
+        # Debug
+        if debug & (random_int == i):
+            for k, img, hmap in enumerate(zip(image, outputs['HeatmapPreds'])):
+                lnds, _ = get_preds_fromhm(hmap.cpu())
+                lnds = lnds.numpy()
+                for num in range(68):
+                    x = int(lnds[num, 0])
+                    y = int(lnds[num, 1])
+                    img = cv2.circle(img, (x, y), 2, (255, 0, 0),
+                                     cv2.FILLED, cv2.LINE_4)
+                cv2.imwrite(f'build/checkpoint/GAT/{k}.png', img)
+                
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
         losses.update(loss.item(), batch_size)
         acces.update(acc/batch_size, batch_size)
+        
         batch_time.update(time.time() - end)
         end = time.time()
         bar.suffix = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
