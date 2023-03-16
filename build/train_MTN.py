@@ -157,9 +157,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
             lnds, _ = get_preds_fromhm(hmap.cpu())
-            lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
-            lnds = torch.stack(lnds)
-            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
+            loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
         
         # L2 loss computed for the pose estimation
         for idx, pose in enumerate(outputs['Poses']):
@@ -241,10 +239,8 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
 
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnds = get_preds_fromhm(hmap.cpu())
-            lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
-            lnds = torch.stack(lnds)
-            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
+            lnds, _ = get_preds_fromhm(hmap.cpu())
+            loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
             
         # L2 loss computed for the pose estimation
         for idx, pose in enumerate(outputs['Pose']):
