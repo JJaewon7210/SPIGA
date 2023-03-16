@@ -52,7 +52,7 @@ def main():
     valConfig = AlignConfig(database_name='sftl54', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=24, data_config=trainConfig)
+    trainloader, trainset = get_dataloader(batch_size=32, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
 
     # model config
