@@ -73,16 +73,16 @@ def main():
         optimizer, milestones=[100], gamma=0.1)
 
     # epoch
+    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
+        logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
         if epoch != 0 and (epoch+1) % 10 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
-            logger.append([int(epoch + 1), lr, train_loss,
-                        valid_loss, train_acc, valid_acc, valid_auc])
 
             is_best = valid_auc >= best_auc
             best_auc = max(valid_auc, best_auc)
@@ -140,7 +140,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         loss = 0
             
-        # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
+        # Smooth L1 function for GAT layers.
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
             lnds = get_preds_fromhm(hmap.cpu())
             lnds = tuple(lnd_cpu.to("cuda:0") for lnd_cpu in lnds)
