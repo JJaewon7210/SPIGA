@@ -17,7 +17,7 @@ processor = SPIGAFramework(ModelConfig(dataset))
 features = processor.inference(image, [bbox])
 
 import copy
-from demo.visualize.plotter import Plotter
+from build.utils.visualize.plotter import Plotter
 
 # Prepare variables
 x0,y0,w,h = bbox
