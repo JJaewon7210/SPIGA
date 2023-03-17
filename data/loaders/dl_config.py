@@ -42,6 +42,9 @@ class AlignConfig:
         elif mode == 'test':
             self.aug_names = ['heatmaps2D', 'boundaries']
             self.shuffle = False
+        elif mode == 'val':
+            self.aug_names = ['heatmaps2D', 'boundaries']
+            self.shuffle = False
         else:
             self.aug_names = []
             self.shuffle = False
