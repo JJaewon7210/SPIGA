@@ -17,7 +17,7 @@ processor = SPIGAFramework(ModelConfig(dataset))
 features = processor.inference(image, [bbox])
 
 import copy
-from build.utils.visualize.plotter import Plotter
+from demo.visualize.plotter import Plotter
 
 # Prepare variables
 x0,y0,w,h = bbox
@@ -32,7 +32,7 @@ canvas = plotter.hpose.draw_headpose(canvas, [x0,y0,x0+w,y0+h], headpose[:3], he
 
 # Show image results
 (h, w) = canvas.shape[:2]
-canvas = cv2.resize(canvas, (512, int(h*512/w)))
+# canvas = cv2.resize(canvas, (512, int(h*512/w)))
 cv2.imshow('', canvas)
 cv2.waitKey(10000)
 # cv2.imwrite("D:/Users/Jaewon/Pictures/irface_sub001_seq02_frm00155_black.jpg_lfb.jpg", canvas)
