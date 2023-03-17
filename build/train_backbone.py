@@ -237,7 +237,9 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         
         # Debug
         if debug  & (random_int == i):
-            for k, img, hmap in enumerate(zip(image, outputs['HeatmapPreds'])):
+            k = 0
+            for img, hmap in zip(image, outputs['HeatmapPreds']):
+                k += 1
                 lnds , _ =  get_preds_fromhm(hmap.cpu())
                 lnds = lnds.numpy()
                 for num in range(68):
