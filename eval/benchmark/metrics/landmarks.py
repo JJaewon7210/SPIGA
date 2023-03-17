@@ -181,8 +181,8 @@ class MetricsLandmarks(Metrics):
             return anns['bbox'][3]
         elif self.nme_norm == 'lnd_bbox':
             lnd = np.array(anns['landmarks'])
-            lnd_max = np.max(lnd, axis=0)
-            lnd_min = np.min(lnd, axis=0)
+            lnd_max = np.nanmax(lnd, axis=0)
+            lnd_min = np.nanmin(lnd, axis=0)
             lnd_wh = lnd_max - lnd_min
             return (lnd_wh[0]*lnd_wh[1])**0.5
         elif self.nme_norm == 'bbox':
