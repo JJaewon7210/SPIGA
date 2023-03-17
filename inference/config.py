@@ -39,6 +39,8 @@ class ModelConfig(object):
         
         if dataset_name == 'sftl54':
             config_dict['model_weights'] = 'spiga_merlrav.pt'
+        else:
+            config_dict['model_weights'] = 'spiga_merlrav.pt'
 
         if self.load_model_url:
             config_dict['model_weights_url'] = MODELS_URL[dataset_name]

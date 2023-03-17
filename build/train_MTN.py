@@ -43,20 +43,20 @@ def main():
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/MTN/', 'log.txt'), title='sftl54')
+        'build/checkpoint/MTN/', 'log.txt'), title='charlotte')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
     # data config
-    trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='val')
+    trainConfig = AlignConfig(database_name='charlotte', mode='train')
+    valConfig = AlignConfig(database_name='charlotte', mode='test')
 
     # dataloader
     trainloader, trainset = get_dataloader(batch_size = 24, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size = 4, data_config=valConfig)
 
     # model config
-    modelConfig = ModelConfig(dataset_name='sftl54', load_model_url=False)
+    modelConfig = ModelConfig(dataset_name='charlotte', load_model_url=False)
     modelConfig.dataset = trainset.database
 
     # model

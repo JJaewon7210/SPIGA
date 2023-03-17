@@ -113,6 +113,10 @@ class AlignConfig:
             img_dir = db_img_path + '/wflw/'
         elif self.database_name in ['sftl54']:
             img_dir = 'D:/ThermalData/SF-TL54/'
+        elif self.database_name in ['charlotte']:
+            img_dir = 'D:/ThermalData/Charlotte_ThermalFace/'
+        elif self.database_name in ['facedb']:
+            img_dir = 'D:/ThermalData/FaceDB_Snapshot_complete/FaceDB_Snapshot_complete/'
         return img_dir
 
     def __str__(self):
