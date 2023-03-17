@@ -152,7 +152,10 @@ class MetricsLandmarks(Metrics):
             raise ValueError('Database %s specifics not defined. Missing db_info.json' % self.database)
 
     def _dist_l2(self, pointA, pointB):
-        return float(((pointA - pointB) ** 2).sum() ** 0.5)
+        if pointA[0] is None or pointA[1] is None:
+            return np.nan
+        else:
+            return float(((pointA - pointB) ** 2).sum() ** 0.5)
 
     def _get_lnd_from_id(self, anns, ids):
         idx = anns['ids'].index(ids)
