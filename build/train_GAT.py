@@ -69,8 +69,7 @@ def main():
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[100], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 10, T_mult = 2, eta_min = 1e-6)
 
     # epoch
     lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
