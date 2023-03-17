@@ -1,6 +1,7 @@
 {
   "norm":
     {
+      "bbox": 7,
       "lnd_bbox": 7,
       "corners": 8,
       "pupils": 8
