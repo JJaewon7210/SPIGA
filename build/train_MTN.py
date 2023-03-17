@@ -49,7 +49,7 @@ def main():
 
     # data config
     trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='test')
+    valConfig = AlignConfig(database_name='sftl54', mode='val')
 
     # dataloader
     trainloader, trainset = get_dataloader(batch_size = 24, data_config=trainConfig)
@@ -81,7 +81,7 @@ def main():
         
         logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
 
-        if epoch != 0 and (epoch+1) % 1 == 0:
+        if epoch != 0 and (epoch+1) % 10 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
