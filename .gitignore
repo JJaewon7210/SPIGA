@@ -23,7 +23,7 @@ tmp
 /data/databases
 
 # Results
-/results
+eval/results
 
 # Test
 accuracy.py
