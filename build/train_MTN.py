@@ -52,8 +52,8 @@ def main():
     valConfig = AlignConfig(database_name='sftl54', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=32, data_config=trainConfig)
-    valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
+    trainloader, trainset = get_dataloader(batch_size = 24, data_config=trainConfig)
+    valloader, valset = get_dataloader(batch_size = 4, data_config=valConfig)
 
     # model config
     modelConfig = ModelConfig(dataset_name='sftl54', load_model_url=False)
@@ -71,8 +71,7 @@ def main():
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[100], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 10, T_mult = 2, eta_min = 1e-6)
 
     lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     # epoch
@@ -82,7 +81,7 @@ def main():
         
         logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
 
-        if epoch != 0 and (epoch+1) % 10 == 0:
+        if epoch != 0 and (epoch+1) % 1 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
@@ -189,6 +188,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             acc=acces.avg,
             lr=scheduler.get_lr()[0])
         bar.next()
+        if i == 2: break
     bar.finish()
 
     return losses.avg, acces.avg
@@ -252,7 +252,9 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         
         # Debug
         if debug & (random_int == i):
-            for k, img, hmap in enumerate(zip(image, outputs['HeatmapPreds'])):
+            k = 0
+            for img, hmap in zip(image, outputs['HeatmapPreds']):
+                k += 1
                 lnds, _ = get_preds_fromhm(hmap.cpu())
                 lnds = lnds.numpy()
                 for num in range(68):
