@@ -7,6 +7,7 @@ from utils.logger import Logger, savefig
 from utils.loss import AdaptiveWingLoss, get_preds_fromhm, fan_NME
 from utils.evaluation import accuracy, AverageMeter, calc_metrics, calc_dists
 from utils.misc import save_checkpoint
+from utils.softargmax import soft_argmax
 import sys
 sys.path.insert(0, '../SPIGA')
 
@@ -151,7 +152,10 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            lnds, _ = get_preds_fromhm(hmap.cpu())
+            # apply the softmax function to hmap
+            hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
+            hmap_argmax = hmap_argmax[:, :, :2] # (batch_size, channel, 2)
+            lnds, _ = get_preds_fromhm(hmap_argmax.cpu()) # B, 68, 64, 64
             loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
             
         # Calculate acc (sum of nme for this batch)
