@@ -7,7 +7,6 @@ from utils.logger import Logger, savefig
 from utils.loss import AdaptiveWingLoss, get_preds_fromhm, fan_NME
 from utils.evaluation import accuracy, AverageMeter, calc_metrics, calc_dists
 from utils.misc import save_checkpoint
-from utils.softargmax import soft_argmax
 import sys
 sys.path.insert(0, '../SPIGA')
 
@@ -71,11 +70,12 @@ def main():
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 30, T_mult = 2, eta_min = 1e-6)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[len(trainloader) * 100], gamma=0.1)
 
     # epoch
     lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
-    for epoch in range(300):
+    for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
@@ -217,7 +217,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
-        features, outputs = processor.pred(image, bbox)
+        features, outputs = processor.pred(torch.from_numpy(image), torch.from_numpy(bbox))
 
         loss = 0
         # Awing losses applied to the point and edges heatmaps. weight = 50

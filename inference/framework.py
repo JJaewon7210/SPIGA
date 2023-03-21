@@ -105,12 +105,19 @@ class SPIGAFramework:
         return features
     
     def pred(self, image, bboxes):
-        batch_crops, crop_bboxes = self.pretreat(image, bboxes)
-        outputs = self.net_forward(batch_crops)
+        # image rotation and send to devices
+        batch_image = image.permute(0, 3, 1, 2)
+        batch_image = self._data2device(batch_image)
+        bboxes = self._data2device(bboxes)
+        # Batch 3D model and camera intrinsic matrix
+        batch_model3D = self.model3d.unsqueeze(0).repeat(len(bboxes), 1, 1)
+        batch_cam_matrix = self.cam_matrix.unsqueeze(0).repeat(len(bboxes), 1, 1)
+        
+        # get output from network
+        outputs = self.net_forward(
+            [batch_image, batch_model3D, batch_cam_matrix])
            
         features = {'landmarks': [], 'headpose': []}
-        bboxes = self._data2device(torch.from_numpy(np.array(bboxes)))
-        crop_bboxes = self._data2device(torch.from_numpy(np.array(crop_bboxes)))
         img_size = self._data2device(torch.Tensor(self.model_cfg.image_size))
         
         # Landmark outputs
@@ -118,7 +125,7 @@ class SPIGAFramework:
             for landmarks in outputs['Landmarks']:
                 landmarks = landmarks.permute(1, 0, 2)
                 landmarks = landmarks* img_size
-                landmarks_norm = (landmarks - crop_bboxes[:, 0:2]) / crop_bboxes[:, 2:4]
+                landmarks_norm = (landmarks - bboxes[:, 0:2]) / bboxes[:, 2:4]
                 landmarks_out = (landmarks_norm * bboxes[:, 2:4]) + bboxes[:, 0:2]
                 landmarks_out = landmarks_out.permute(1, 0, 2)
                 features['landmarks'].append(landmarks_out)

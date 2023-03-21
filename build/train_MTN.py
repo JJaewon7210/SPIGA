@@ -71,10 +71,11 @@ def main():
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 10, T_mult = 2, eta_min = 1e-6)
-
-    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[len(trainloader) * 100], gamma=0.1)
+    
     # epoch
+    lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
     for epoch in range(150):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
@@ -133,7 +134,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         target_pose = processor._data2device(torch.from_numpy(pose).float())
 
         # output
-        features, outputs = processor.pred(image, bbox)
+        features, outputs = processor.pred(torch.from_numpy(image), torch.from_numpy(bbox))
 
         loss = 0
         # Awing losses applied to the point and edges heatmaps. weight = 50
@@ -152,7 +153,13 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             loss += 2**(idx)*criterion[2](pose, target_pose)
         
         # Calculate acc (sum of nme for this batch)
-        acc, _ = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
+        acc, batch_dists = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
+
+        # update processor
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
 
         # Debug
         if debug  & (i == 1):
@@ -164,13 +171,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
                     y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
                 cv2.imwrite(f'build/checkpoint/MTN/train_{k}.png', img)
-
-        # update processor
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-
+                
         # update history
         losses.update(loss.item()/batch_size, batch_size)
         acces.update(acc/batch_size, batch_size)
@@ -226,7 +227,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         target_pose = processor._data2device(torch.from_numpy(pose))
         
         # output
-        features, outputs = processor.pred(image, bbox)
+        features, outputs = processor.pred(torch.from_numpy(image), torch.from_numpy(bbox))
 
         loss = 0
         # Awing losses applied to the point and edges heatmaps. weight = 50
