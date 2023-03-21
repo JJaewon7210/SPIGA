@@ -126,15 +126,6 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # batch_size
         batch_size = np.shape(image)[0]
 
-        # # # Show Image
-        # for img,lnd in zip(image,landmarks):
-        #     for num in range(68):
-        #         x = int(lnd[num,0])*4
-        #         y = int(lnd[num,1])*4
-        #         img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-        #     cv2.imshow('target',img)
-        #     cv2.waitKey(0)
-
         #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
         target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
@@ -161,7 +152,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             loss += 2**(idx)*criterion[2](pose, target_pose)
         
         # Calculate acc (sum of nme for this batch)
-        acc, _ = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
+        acc, _ = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
 
         # Debug
         if debug  & (i == 1):
@@ -172,8 +163,6 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
                     x = int(lnd[num,0])*4
                     y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                # cv2.imshow(f'pred_{k}',img)
-                # cv2.waitKey(0)
                 cv2.imwrite(f'build/checkpoint/MTN/train_{k}.png', img)
 
         # update processor
@@ -214,8 +203,6 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     processor.model.eval()
     gc.collect()
     torch.cuda.empty_cache()
-    if debug:
-        random_int = np.random.randint(low=1, high=len(loader)-1)
         
     bar = Bar('Validating', max=len(loader))
     all_dists = torch.zeros((68, loader.dataset.__len__()))
@@ -258,7 +245,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
             loss += 2**(idx)*criterion[2](pose, target_pose)
             
         # Calculate acc (sum of nme for this batch)
-        acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
+        acc, batch_dists = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
         if debug  & (i == 1):
@@ -269,8 +256,6 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
                     x = int(lnd[num,0])*4
                     y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                # cv2.imshow(f'valid_{k}',img)
-                # cv2.waitKey(0)
                 cv2.imwrite(f'build/checkpoint/MTN/valid_{k}.png', img)
                 
         # update history
@@ -295,11 +280,9 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
 
     # This is auc of predicted maps and target.
     auc = calc_metrics(all_dists, path='build/checkpoint/MTN/')
-    print(
-        "=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
+    print("=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
 
     return losses.avg, acces.avg, auc, all_dists
-
 
 if __name__ == '__main__':
     main()

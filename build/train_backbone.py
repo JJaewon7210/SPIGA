@@ -130,7 +130,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         target_boundaries = processor._data2device(torch.from_numpy(boundaries))
 
         # output
-        features, outputs = processor.pred(image, bbox)
+        features, outputs = processor.pred(torch.from_numpy(image), torch.from_numpy(bbox))
 
         loss = 0
         # Awing losses applied to the point and edges heatmaps. weight = 50
@@ -138,17 +138,14 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             loss += 2**(idx)*criterion[1](hmap, target_heatmap2D) * 50
         for idx, hmap in enumerate(outputs['HeatmapEdges']):
             loss += 2**(idx)*criterion[1](hmap, target_boundaries) * 50
-            
+
         # Smooth L1 function computed between the annotated and predicted landmarks coordinates. weight = 4
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
-            # apply the softmax function to hmap
-            hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
-            lnds = hmap_argmax[:, :, :2] # (batch_size, channel, 2)
-            # lnds, _ = get_preds_fromhm(hmap_argmax.cpu()) # B, 68, 64, 64
-            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
+            lnds, _ = get_preds_fromhm(hmap.cpu())
+            loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
             
         # Calculate acc (sum of nme for this batch)
-        acc, _ = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
+        acc, batch_dists = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
 
         # update processor
         optimizer.zero_grad()
@@ -159,14 +156,12 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # Debug
         if debug  & (i == 1):
             hmap_pred = outputs['HeatmapPreds'][-1]
-            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            lnds, _ = get_preds_fromhm(hmap_pred.cpu())
             for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
                 for num in range(68):
                     x = int(lnd[num,0])*4
                     y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                # cv2.imshow(f'pred_{k}',img)
-                # cv2.waitKey(0)
                 cv2.imwrite(f'build/checkpoint/backbone/train_{k}.png', img)
 
         # update history
@@ -201,8 +196,6 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
     processor.model.eval()
     gc.collect()
     torch.cuda.empty_cache()
-    if debug: 
-        random_int = np.random.randint(low=1, high=len(loader)-1)
 
     bar = Bar('Validating', max=len(loader))
     all_dists = torch.zeros((68, loader.dataset.__len__()))
@@ -239,7 +232,7 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
             loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
 
         # Calculate acc (sum of nme for this batch)
-        acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
+        acc, batch_dists = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
         if debug  & (i == 1):
@@ -250,8 +243,6 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
                     x = int(lnd[num,0])*4
                     y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                # cv2.imshow(f'pred_{k}',img)
-                # cv2.waitKey(0)
                 cv2.imwrite(f'build/checkpoint/backbone/valid_{k}.png', img)
         
         # update history
@@ -276,11 +267,9 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
 
     # This is auc of predicted maps and target.
     auc = calc_metrics(all_dists, path='build/checkpoint/backbone/')
-    print(
-        "=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
+    print("=> Mean Error: {:.2f}, AUC@0.07: {} based on maps".format(mean_error*100., auc))
 
     return losses.avg, acces.avg, auc, all_dists
-
 
 if __name__ == '__main__':
     main()

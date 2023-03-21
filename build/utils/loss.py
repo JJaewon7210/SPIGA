@@ -87,23 +87,23 @@ def get_preds_fromhm(hm, center=None, scale=None, rot=None):
     return preds, preds_orig
 
 
-def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
+def fan_NME(pred_landmarks, gt_landmarks, num_landmarks=68):
     '''
        Calculate total NME for a batch of data
        Args:
-           pred_heatmaps: torch tensor of size [batch, points, height, width]
+           pred_landmarks: torch tensor of size [batch, points, x, y]
            gt_landmarks: torch tesnsor of size [batch, points, x, y]
        Returns:
            nme: sum of nme for this batch
            dists: nme of each data in this batch (size [batch])
     '''
     nme = 0
-    dists = torch.Tensor(pred_heatmaps.shape[0]).zero_()
-    pred_landmarks, _ = get_preds_fromhm(pred_heatmaps)
+    dists = torch.Tensor(pred_landmarks.shape[0]).zero_()
+    # pred_landmarks, _ = get_preds_fromhm(pred_heatmaps)
     pred_landmarks = pred_landmarks.numpy()
     gt_landmarks = gt_landmarks.numpy()
     for i in range(pred_landmarks.shape[0]):
-        pred_landmark = pred_landmarks[i] * 4.0
+        pred_landmark = pred_landmarks[i]
         gt_landmark = gt_landmarks[i]
 
         if num_landmarks == 68:
