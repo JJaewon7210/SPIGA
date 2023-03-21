@@ -62,32 +62,17 @@ class SPIGAFramework:
         return
         
     def train(self, visual_cnn = True, pose_fc = True, gcn = True):
+        self.model.train()
         
-        # fine tunning the landmark detection model
-        for child in self.model.visual_cnn.children():
-            for param in child.parameters():
-                param.requires_grad = visual_cnn
+        # fine tuning the landmark detection model
+        self.model.visual_cnn.requires_grad_(visual_cnn)
 
-        # fine tunning the pose estimation model
-        for child in self.model.visual_cnn.hgs_core.children():
-            for param in child.parameters():
-                param.requires_grad = pose_fc
-        
-        for child in self.model.pose_fc.children():
-            for param in child.parameters():
-                param.requires_grad = pose_fc
-        
-        # fine tunning the gcn model
-        for child in self.model.gcn.children():
-            for param in child.parameters():
-                param.requires_grad = gcn
-                
-        params_to_update = []
-        for name, param in self.model.named_parameters():
-            if param.requires_grad == True:
-                params_to_update.append(param)
-                
-        self.params_to_update = params_to_update
+        # fine tuning the pose estimation model
+        self.model.visual_cnn.hgs_core.requires_grad_(pose_fc)
+        self.model.pose_fc.requires_grad_(pose_fc)
+
+        # fine tuning the gcn model
+        self.model.gcn.requires_grad_(gcn)
         
         return
 
@@ -110,8 +95,8 @@ class SPIGAFramework:
         batch_image = self._data2device(batch_image)
         bboxes = self._data2device(bboxes)
         # Batch 3D model and camera intrinsic matrix
-        batch_model3D = self.model3d.unsqueeze(0).repeat(len(bboxes), 1, 1)
-        batch_cam_matrix = self.cam_matrix.unsqueeze(0).repeat(len(bboxes), 1, 1)
+        batch_model3D = self.model3d.unsqueeze(0).repeat(bboxes.shape[0], 1, 1)
+        batch_cam_matrix = self.cam_matrix.unsqueeze(0).repeat(bboxes.shape[0], 1, 1)
         
         # get output from network
         outputs = self.net_forward(

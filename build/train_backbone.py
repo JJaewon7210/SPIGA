@@ -51,8 +51,8 @@ def main():
     valConfig = AlignConfig(database_name='facedb', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=24, data_config=trainConfig)
-    valloader, valset = get_dataloader(batch_size=4, data_config=valConfig)
+    trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
+    valloader, valset = get_dataloader(batch_size=2, data_config=valConfig)
 
     # model config
     modelConfig = ModelConfig(dataset_name='facedb', load_model_url=False)
@@ -60,16 +60,14 @@ def main():
 
     # model
     processor = SPIGAFramework(modelConfig)
-    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
-
-    # multi processing
     processor.multiprocessing()
+    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
 
     # criterion
     criterion = [torch.nn.SmoothL1Loss().cuda(), AdaptiveWingLoss().cuda()]
 
     # optimizer
-    optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, processor.model.parameters()), lr=1e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[len(trainloader) * 100], gamma=0.1)
 
@@ -83,7 +81,6 @@ def main():
         if epoch != 0 and (epoch+1) % 30 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
-
 
             is_best = valid_auc >= best_auc
             best_auc = max(valid_auc, best_auc)

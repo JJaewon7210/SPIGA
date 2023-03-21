@@ -70,7 +70,8 @@ def main():
     criterion = [torch.nn.SmoothL1Loss().cuda(), AdaptiveWingLoss().cuda(), torch.nn.MSELoss().cuda()]
 
     # optimizer
-    optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, processor.model.parameters()), lr=1e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[len(trainloader) * 100], gamma=0.1)
     
