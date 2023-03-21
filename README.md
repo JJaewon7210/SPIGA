@@ -5,9 +5,9 @@
 [![PyPI version](https://badge.fury.io/py/spiga.svg)](https://badge.fury.io/py/spiga)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 
-This repository contains the source code of **SPIGA, a face alignment and headpose estimator** that takes advantage of the complementary benefits from CNN and GNN architectures producing plausible face shapes in presence of strong appearance changes.
+This repository contains the train code of **SPIGA, a face alignment and headpose estimator**.
 
-***Note:*** The original repository of this project is from [SPIGA](https://github.com/andresprados/SPIGA). I appreciate for sharing the code. I add the simple train section to train my own model. I followed the original text and proceeded with the training process, but it could be very different from the actual way the author did. Please check the original repository and paper for more information.
+***Note:*** The original repository of this project is from [SPIGA](https://github.com/andresprados/SPIGA). I add the simple train section to train my own model. I followed the original text and proceeded with the training process, but it could be very different from the actual way the author did. Please check the original repository and paper for more information.
 
 <p align="center">
     <img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/spiga_scheme.png" width="80%">
@@ -15,8 +15,11 @@ This repository contains the source code of **SPIGA, a face alignment and headpo
 
 ## Things that changed
 
-The training went through fine-tuning from thermal imaging by taking an existing pretrained model. (feature extraction was frozen)
-I didn't train the 'pose estimation model' separately, and I only focused on fine-tunning the GCN network.
+The training process was conducted into three stpes
+Step 1. Train the backbone (HG network).
+Step 2. Train the pose estimation networks and the backbone.
+Step 3. Freeze the backbone and the pose estimation. Train the GAT model.
+***Note:*** The training code can be found in 'build/' folder.
 
 ## Setup
 I tested this repository on Windows 11 with CUDA 11.7, the latest version of cuDNN, python 3.9. It is noted that the original repository has been tested on Ubuntu 20.04 with CUDA 11.4, the latest version of cuDNN, Python 3.8 and Pytorch 1.12.1.
