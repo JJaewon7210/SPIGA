@@ -19,7 +19,7 @@ def soft_argmax(voxels):
 	N, C, H, W, D = voxels.shape
 	soft_max = nn.functional.softmax(voxels.view(N, C, -1)*alpha, dim=2)
 	soft_max = soft_max.view(voxels.shape)
-	indices_kernel = torch.arange(start=0, end=H*W*D).unsqueeze(0)
+	indices_kernel = torch.arange(start=0, end=H*W*D).unsqueeze(0).to('cuda:0')
 	indices_kernel = indices_kernel.view((H, W, D))
 	conv = soft_max*indices_kernel
 	indices = conv.sum(2).sum(2).sum(2)

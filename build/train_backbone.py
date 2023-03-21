@@ -71,16 +71,16 @@ def main():
 
     # optimizer
     optimizer = torch.optim.Adam(processor.params_to_update, lr=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 10, T_mult = 2, eta_min = 1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0 = len(trainloader) * 30, T_mult = 2, eta_min = 1e-6)
 
     # epoch
     lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
-    for epoch in range(150):
+    for epoch in range(300):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
         logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
-        if epoch != 0 and (epoch+1) % 10 == 0:
+        if epoch != 0 and (epoch+1) % 30 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
@@ -100,7 +100,7 @@ def main():
             )
 
 
-def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=False, flip=False):
+def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=True, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -154,9 +154,9 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         for idx, hmap in enumerate(outputs['HeatmapPreds']):
             # apply the softmax function to hmap
             hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
-            hmap_argmax = hmap_argmax[:, :, :2] # (batch_size, channel, 2)
-            lnds, _ = get_preds_fromhm(hmap_argmax.cpu()) # B, 68, 64, 64
-            loss += 2**(idx)*criterion[0](lnds.to('cuda:0'), target_landmarks) * 4
+            lnds = hmap_argmax[:, :, :2] # (batch_size, channel, 2)
+            # lnds, _ = get_preds_fromhm(hmap_argmax.cpu()) # B, 68, 64, 64
+            loss += 2**(idx)*criterion[0](lnds, target_landmarks) * 4
             
         # Calculate acc (sum of nme for this batch)
         acc, _ = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
@@ -166,7 +166,22 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         loss.backward()
         optimizer.step()
         scheduler.step()
-
+        
+        # Debug
+        if debug & ( i == 1):
+            hmap = outputs['HeatmapPreds'][-1]
+            # apply the softmax function to hmap
+            hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
+            lnds = hmap_argmax[:, :, :2]  # (batch_size, channel, 2)
+            lnds = lnds.cpu().detach().numpy()
+            
+            for k, (img, lnd) in enumerate(zip(image, lnds)):
+                for num in range(68):
+                    x = int(lnd[num, 0])*4
+                    y = int(lnd[num, 1])*4
+                    img = cv2.circle(img, (x, y), 2, (255, 0, 0), cv2.FILLED, cv2.LINE_4)
+                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
+                
         # update history
         losses.update(loss.item(), batch_size)
         acces.update(acc/batch_size, batch_size)
@@ -189,7 +204,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     return losses.avg, acces.avg
 
 
-def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=False):
+def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -240,16 +255,19 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
-        if debug  & (random_int == i):
-            k = 0
-            for img, hmap in zip(image, outputs['HeatmapPreds']):
-                k += 1
-                lnds , _ =  get_preds_fromhm(hmap.cpu())
+        if debug & (i == 1):
+
+            for k, (img, hmap) in enumerate(zip(image, outputs['HeatmapPreds'])):
+                # apply the softmax function to hmap
+                hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
+                hmap_argmax = hmap_argmax[:, :, :2]  # (batch_size, channel, 2)
+                lnds, _ = get_preds_fromhm(hmap.cpu())
                 lnds = lnds.numpy()
                 for num in range(68):
-                    x = int(lnds[num,0])
-                    y = int(lnds[num,1])
-                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                    x = int(lnds[num, 0])
+                    y = int(lnds[num, 1])
+                    img = cv2.circle(img, (x, y), 2, (255, 0, 0),
+                                     cv2.FILLED, cv2.LINE_4)
                 cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
         
         # update history
