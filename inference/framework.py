@@ -82,7 +82,6 @@ class SPIGAFramework:
             for param in child.parameters():
                 param.requires_grad = gcn
                 
-        params_to_update = self.model.parameters()
         params_to_update = []
         for name, param in self.model.named_parameters():
             if param.requires_grad == True:

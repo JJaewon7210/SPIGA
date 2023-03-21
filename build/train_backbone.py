@@ -42,20 +42,20 @@ def main():
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/backbone/', 'log.txt'), title='sftl54')
+        'build/checkpoint/backbone/', 'log.txt'), title='facedb')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
     # data config
-    trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='test')
+    trainConfig = AlignConfig(database_name='facedb', mode='train')
+    valConfig = AlignConfig(database_name='facedb', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
-    valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
+    trainloader, trainset = get_dataloader(batch_size=24, data_config=trainConfig)
+    valloader, valset = get_dataloader(batch_size=4, data_config=valConfig)
 
     # model config
-    modelConfig = ModelConfig(dataset_name='sftl54', load_model_url=False)
+    modelConfig = ModelConfig(dataset_name='facedb', load_model_url=False)
     modelConfig.dataset = trainset.database
 
     # model
@@ -74,12 +74,12 @@ def main():
 
     # epoch
     lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc = 0, 0, 0, 0, 0, 0
-    for epoch in range(150):
+    for epoch in range(300):
         lr = optimizer.param_groups[0]['lr']
         train_loss, train_acc = train(trainloader, processor, criterion, optimizer, scheduler)
         
         logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
-        if epoch != 0 and (epoch+1) % 10 == 0:
+        if epoch != 0 and (epoch+1) % 30 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
@@ -99,7 +99,7 @@ def main():
             )
 
 
-def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=False, flip=False):
+def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=True, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -122,17 +122,6 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
 
         # batch_size
         batch_size = np.shape(image)[0]
-
-        # Show Image
-        # for img,lnd in zip(image,landmarks):
-        #     img = img.numpy()
-        #     lnd = lnd.numpy()
-        #     for num in range(68):
-        #         x = int(lnd[num,0])
-        #         y = int(lnd[num,1])
-        #         img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-        #     cv2.imshow('img',img)
-        #     cv2.waitKey(0)
 
         #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
@@ -163,6 +152,19 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         optimizer.step()
         scheduler.step()
 
+        # Debug
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
+                for num in range(68):
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
+                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                # cv2.imshow(f'pred_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/backbone/train_{k}.png', img)
+
         # update history
         losses.update(loss.item(), batch_size)
         acces.update(acc/batch_size, batch_size)
@@ -185,7 +187,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
     return losses.avg, acces.avg
 
 
-def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=False):
+def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -236,17 +238,17 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
-        if debug  & (random_int == i):
-            k = 0
-            for img, hmap in zip(image, outputs['HeatmapPreds']):
-                k += 1
-                lnds , _ =  get_preds_fromhm(hmap.cpu())
-                lnds = lnds.numpy()
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
                 for num in range(68):
-                    x = int(lnds[num,0])
-                    y = int(lnds[num,1])
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
+                # cv2.imshow(f'pred_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/backbone/valid_{k}.png', img)
         
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists

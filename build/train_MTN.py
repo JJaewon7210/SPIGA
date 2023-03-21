@@ -43,20 +43,20 @@ def main():
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/MTN/', 'log.txt'), title='charlotte')
+        'build/checkpoint/MTN/', 'log.txt'), title='facedb')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
     # data config
-    trainConfig = AlignConfig(database_name='charlotte', mode='train')
-    valConfig = AlignConfig(database_name='charlotte', mode='test')
+    trainConfig = AlignConfig(database_name='facedb', mode='train')
+    valConfig = AlignConfig(database_name='facedb', mode='test')
 
     # dataloader
     trainloader, trainset = get_dataloader(batch_size = 24, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size = 4, data_config=valConfig)
 
     # model config
-    modelConfig = ModelConfig(dataset_name='charlotte', load_model_url=False)
+    modelConfig = ModelConfig(dataset_name='facedb', load_model_url=False)
     modelConfig.dataset = trainset.database
 
     # model
@@ -81,7 +81,7 @@ def main():
         
         logger.append([int(epoch + 1), lr, train_loss, valid_loss, train_acc, valid_acc, valid_auc])
 
-        if epoch != 0 and (epoch+1) % 10 == 0:
+        if epoch != 0 and (epoch+1) % 30 == 0:
             with torch.no_grad():
                 valid_loss, valid_acc, valid_auc, all_accs = validate(valloader, processor, criterion)
 
@@ -101,7 +101,7 @@ def main():
             )
 
 
-def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=False, flip=False):
+def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, debug=True, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -126,15 +126,13 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # batch_size
         batch_size = np.shape(image)[0]
 
-        # Show Image
+        # # # Show Image
         # for img,lnd in zip(image,landmarks):
-        #     img = img.numpy()
-        #     lnd = lnd.numpy()
         #     for num in range(68):
-        #         x = int(lnd[num,0])
-        #         y = int(lnd[num,1])
+        #         x = int(lnd[num,0])*4
+        #         y = int(lnd[num,1])*4
         #         img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-        #     cv2.imshow('img',img)
+        #     cv2.imshow('target',img)
         #     cv2.waitKey(0)
 
         #  target to torch.cuda
@@ -165,6 +163,19 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # Calculate acc (sum of nme for this batch)
         acc, _ = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
 
+        # Debug
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
+                for num in range(68):
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
+                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                # cv2.imshow(f'pred_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/MTN/train_{k}.png', img)
+
         # update processor
         optimizer.zero_grad()
         loss.backward()
@@ -188,13 +199,12 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             acc=acces.avg,
             lr=scheduler.get_lr()[0])
         bar.next()
-        if i == 2: break
     bar.finish()
 
     return losses.avg, acces.avg
 
 
-def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=False):
+def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -251,17 +261,17 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
-        if debug  & (random_int == i):
-            k = 0
-            for img, hmap in zip(image, outputs['HeatmapPreds']):
-                k += 1
-                lnds , _ =  get_preds_fromhm(hmap.cpu())
-                lnds = lnds.numpy()
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
                 for num in range(68):
-                    x = int(lnds[num,0])
-                    y = int(lnds[num,1])
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
+                # cv2.imshow(f'valid_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/MTN/valid_{k}.png', img)
                 
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists

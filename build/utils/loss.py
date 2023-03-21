@@ -103,7 +103,7 @@ def fan_NME(pred_heatmaps, gt_landmarks, num_landmarks=68):
     pred_landmarks = pred_landmarks.numpy()
     gt_landmarks = gt_landmarks.numpy()
     for i in range(pred_landmarks.shape[0]):
-        pred_landmark = pred_landmarks[i] # * 4.0
+        pred_landmark = pred_landmarks[i] * 4.0
         gt_landmark = gt_landmarks[i]
 
         if num_landmarks == 68:
