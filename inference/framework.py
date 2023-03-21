@@ -102,7 +102,7 @@ class SPIGAFramework:
         outputs = self.net_forward(
             [batch_image, batch_model3D, batch_cam_matrix])
            
-        features = {'landmarks': [], 'headpose': []}
+        features = {'landmark': [], 'headpose': []}
         img_size = self._data2device(torch.Tensor(self.model_cfg.image_size))
         
         # Landmark outputs
@@ -113,7 +113,7 @@ class SPIGAFramework:
                 landmarks_norm = (landmarks - bboxes[:, 0:2]) / bboxes[:, 2:4]
                 landmarks_out = (landmarks_norm * bboxes[:, 2:4]) + bboxes[:, 0:2]
                 landmarks_out = landmarks_out.permute(1, 0, 2)
-                features['landmarks'].append(landmarks_out)
+                features['landmark'].append(landmarks_out)
 
         # Pose outputs
         if 'Pose' in outputs.keys():

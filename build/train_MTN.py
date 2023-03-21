@@ -61,10 +61,8 @@ def main():
 
     # model
     processor = SPIGAFramework(modelConfig)
-    processor.train(visual_cnn=True, pose_fc=True, gcn=False)
-
-    # multi processing
     processor.multiprocessing()
+    processor.train(visual_cnn=True, pose_fc=False, gcn=False)
 
     # criterion
     criterion = [torch.nn.SmoothL1Loss().cuda(), AdaptiveWingLoss().cuda(), torch.nn.MSELoss().cuda()]
@@ -156,7 +154,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # Calculate acc (sum of nme for this batch)
         acc, batch_dists = fan_NME(lnds.cpu().detach(), target_landmarks.cpu(), num_landmarks=68)
 
-        # update processor
+        # update processor 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
