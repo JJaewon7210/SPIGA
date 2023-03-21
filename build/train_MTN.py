@@ -52,7 +52,7 @@ def main():
     valConfig = AlignConfig(database_name='facedb', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size = 24, data_config=trainConfig)
+    trainloader, trainset = get_dataloader(batch_size = 8, data_config=trainConfig)
     valloader, valset = get_dataloader(batch_size = 4, data_config=valConfig)
 
     # model config

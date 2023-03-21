@@ -80,7 +80,7 @@ class AlignmentsDataset(Dataset):
         image_cv = image_cv[:, :, :3]
 
         image_cv = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
-        image_cv = cv2.applyColorMap(image_cv, cv2.COLORMAP_JET)
+        # image_cv = cv2.applyColorMap(image_cv, cv2.COLORMAP_JET)
         image = Image.fromarray(image_cv)
 
         # Load sample anns
