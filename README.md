@@ -1,4 +1,4 @@
-# SPIGA: Shape Preserving Facial Landmarks with Graph Attention Networks.
+## SPIGA: Shape Preserving Facial Landmarks with Graph Attention Networks. (Pytorch Train Code Implementation)
 
 [![Project Page](https://badgen.net/badge/color/Project%20Page/purple?icon=atom&label)](https://bmvc2022.mpi-inf.mpg.de/155/)
 [![arXiv](https://img.shields.io/badge/arXiv-2210.07233-b31b1b.svg)](https://arxiv.org/abs/2210.07233)
@@ -13,9 +13,9 @@ This repository contains the train code of **SPIGA, a face alignment and headpos
     <img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/spiga_scheme.png" width="80%">
 </p>
 
-## Things that changed
+## Training Process
 
-The training process was conducted into three stpes
+The training process was conducted into three stpes according to paper.
 Step 1. Train the backbone (HG network).
 Step 2. Train the pose estimation networks and the backbone.
 Step 3. Freeze the backbone and the pose estimation. Train the GAT model.
