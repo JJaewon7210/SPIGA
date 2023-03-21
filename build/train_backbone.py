@@ -43,20 +43,20 @@ def main():
 
     # set logger
     logger = Logger(os.path.join(
-        'build/checkpoint/backbone/', 'log.txt'), title='sftl54')
+        'build/checkpoint/backbone/', 'log.txt'), title='facedb')
     logger.set_names(['Epoch', 'LR', 'Train Loss',
                      'Valid Loss', 'Train Acc', 'Val Acc', 'AUC'])
 
     # data config
-    trainConfig = AlignConfig(database_name='sftl54', mode='train')
-    valConfig = AlignConfig(database_name='sftl54', mode='test')
+    trainConfig = AlignConfig(database_name='facedb', mode='train')
+    valConfig = AlignConfig(database_name='facedb', mode='test')
 
     # dataloader
-    trainloader, trainset = get_dataloader(batch_size=8, data_config=trainConfig)
-    valloader, valset = get_dataloader(batch_size=1, data_config=valConfig)
+    trainloader, trainset = get_dataloader(batch_size=24, data_config=trainConfig)
+    valloader, valset = get_dataloader(batch_size=4, data_config=valConfig)
 
     # model config
-    modelConfig = ModelConfig(dataset_name='sftl54', load_model_url=False)
+    modelConfig = ModelConfig(dataset_name='facedb', load_model_url=False)
     modelConfig.dataset = trainset.database
 
     # model
@@ -124,17 +124,6 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         # batch_size
         batch_size = np.shape(image)[0]
 
-        # Show Image
-        # for img,lnd in zip(image,landmarks):
-        #     img = img.numpy()
-        #     lnd = lnd.numpy()
-        #     for num in range(68):
-        #         x = int(lnd[num,0])
-        #         y = int(lnd[num,1])
-        #         img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
-        #     cv2.imshow('img',img)
-        #     cv2.waitKey(0)
-
         #  target to torch.cuda
         target_landmarks = processor._data2device(torch.from_numpy(landmarks))
         target_heatmap2D = processor._data2device(torch.from_numpy(heatmap2D))
@@ -166,22 +155,20 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         loss.backward()
         optimizer.step()
         scheduler.step()
-        
+
         # Debug
-        if debug & ( i == 1):
-            hmap = outputs['HeatmapPreds'][-1]
-            # apply the softmax function to hmap
-            hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
-            lnds = hmap_argmax[:, :, :2]  # (batch_size, channel, 2)
-            lnds = lnds.cpu().detach().numpy()
-            
-            for k, (img, lnd) in enumerate(zip(image, lnds)):
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
                 for num in range(68):
-                    x = int(lnd[num, 0])*4
-                    y = int(lnd[num, 1])*4
-                    img = cv2.circle(img, (x, y), 2, (255, 0, 0), cv2.FILLED, cv2.LINE_4)
-                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
-                
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
+                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                # cv2.imshow(f'pred_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/backbone/train_{k}.png', img)
+
         # update history
         losses.update(loss.item(), batch_size)
         acces.update(acc/batch_size, batch_size)
@@ -255,20 +242,17 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=False, flip=Fal
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
         # Debug
-        if debug & (i == 1):
-
-            for k, (img, hmap) in enumerate(zip(image, outputs['HeatmapPreds'])):
-                # apply the softmax function to hmap
-                hmap_argmax = soft_argmax(hmap[:, :, :, :, None])
-                hmap_argmax = hmap_argmax[:, :, :2]  # (batch_size, channel, 2)
-                lnds, _ = get_preds_fromhm(hmap.cpu())
-                lnds = lnds.numpy()
+        if debug  & (i == 1):
+            hmap_pred = outputs['HeatmapPreds'][-1]
+            lnds , _ =  get_preds_fromhm(hmap_pred.cpu())
+            for k, (img, lnd) in enumerate(zip(image, lnds.numpy())):
                 for num in range(68):
-                    x = int(lnds[num, 0])
-                    y = int(lnds[num, 1])
-                    img = cv2.circle(img, (x, y), 2, (255, 0, 0),
-                                     cv2.FILLED, cv2.LINE_4)
-                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
+                    x = int(lnd[num,0])*4
+                    y = int(lnd[num,1])*4
+                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                # cv2.imshow(f'pred_{k}',img)
+                # cv2.waitKey(0)
+                cv2.imwrite(f'build/checkpoint/backbone/valid_{k}.png', img)
         
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists

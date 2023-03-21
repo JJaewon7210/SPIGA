@@ -223,17 +223,19 @@ def validate(loader, processor: SPIGAFramework, criterion, debug=True, flip=Fals
         # Calculate acc (sum of nme for this batch)
         acc, batch_dists = fan_NME(hmap.cpu(), target_landmarks.cpu(), num_landmarks=68)
         
+        
         # Debug
-        if debug & (random_int == i):
-            for k, img, hmap in enumerate(zip(image, outputs['HeatmapPreds'])):
-                lnds, _ = get_preds_fromhm(hmap.cpu())
+        if debug  & (random_int == i):
+            k = 0
+            for img, hmap in zip(image, outputs['HeatmapPreds']):
+                k += 1
+                lnds , _ =  get_preds_fromhm(hmap.cpu())
                 lnds = lnds.numpy()
                 for num in range(68):
-                    x = int(lnds[num, 0])
-                    y = int(lnds[num, 1])
-                    img = cv2.circle(img, (x, y), 2, (255, 0, 0),
-                                     cv2.FILLED, cv2.LINE_4)
-                cv2.imwrite(f'build/checkpoint/GAT/{k}.png', img)
+                    x = int(lnds[num,0])
+                    y = int(lnds[num,1])
+                    img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
+                cv2.imwrite(f'build/checkpoint/backbone/{k}.png', img)
                 
         # update history
         all_dists[:, i * batch_size:(i + 1) * batch_size] = batch_dists
