@@ -11,6 +11,7 @@ tmp
 *.h5
 *.pt
 *.egg-info
+*.tar*
 
 # Build
 /dist

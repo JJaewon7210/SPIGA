@@ -129,6 +129,7 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
         loss = 0
         # Smooth L1 function for GAT layers.
         for idx, lnds in enumerate(outputs['Landmarks']):
+            lnds = lnds * 64
             loss += criterion(lnds, target_landmarks)
             
         # Calculate acc (sum of nme for this batch)
@@ -145,8 +146,8 @@ def train(loader, processor: SPIGAFramework, criterion, optimizer, scheduler, de
             lnds = outputs['Landmarks'][-1]
             for k, (img, lnd) in enumerate(zip(image, lnds.cpu().detach().numpy())):
                 for num in range(68):
-                    x = int(lnd[num,0])*4
-                    y = int(lnd[num,1])*4
+                    x = int(lnd[num,0]*4*64) 
+                    y = int(lnd[num,1]*4*64) 
                     img = cv2.circle(img,(x,y),2,(255,0,0),cv2.FILLED,cv2.LINE_4)
                 cv2.imwrite(f'build/checkpoint/GAT/train_{k}.png', img)
                 
