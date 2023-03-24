@@ -41,6 +41,7 @@ class SPIGAFramework:
             model_state_dict = torch.load(weights_file)
 
         self.model.load_state_dict(model_state_dict)
+        # self.model.load_state_dict(torch.load(os.path.join(weights_path, 'spiga_facedb_GAT.tar'))['state_dict'])
         self.model = self.model.cuda(gpus[0])
         self.model.eval()
         print('SPIGA model loaded!')

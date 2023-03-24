@@ -11,6 +11,7 @@ tmp
 *.h5
 *.pt
 *.egg-info
+*.tar
 
 # Build
 /dist
@@ -28,3 +29,5 @@ eval/results
 # Test
 accuracy.py
 app.py
+colormap.py
+pose_analysis.py
