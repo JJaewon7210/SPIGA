@@ -35,11 +35,9 @@ You can also download them from [Google Drive](https://drive.google.com/drive/fo
 
 <p align="center">
 
-<img src="https://user-images.githubusercontent.com/96426723/228104366-e1b08942-28ec-49ad-8af8-3ce27db35ffe.png" width=250px height=250px>
+<img src="https://user-images.githubusercontent.com/96426723/228106218-96dacaa9-e7ed-4910-95e8-7bfde466a6b3.jpg" width=256px height=341px>
 &nbsp;&nbsp;&nbsp;
-<img src="https://user-images.githubusercontent.com/96426723/228104378-505717db-2c8d-4b89-ba88-c4375438c107.png" width=250px height=250px>
-&nbsp;&nbsp;&nbsp;
-</p>
+
 
 ## Acknowledgements
 
