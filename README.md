@@ -9,10 +9,6 @@ This repository contains the train code of **SPIGA, a face alignment and headpos
 
 ***Note:*** The original repository of this project is from [SPIGA](https://github.com/andresprados/SPIGA). I add the simple train section to train my own model. I followed the original text and proceeded with the training process, but it could be very different from the actual way the author did. Please check the original repository and paper for more information.
 
-<p align="center">
-    <img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/spiga_scheme.png" width="80%">
-</p>
-
 ## Training Process
 
 The training process was conducted into three stpes according to paper.
@@ -41,9 +37,6 @@ You can also download them from [Google Drive](https://drive.google.com/drive/fo
 
 <img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/demo.gif" width=250px height=250px>
 &nbsp;&nbsp;&nbsp;
-<img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/results/carnaval.gif" width=300px height=250px>
-&nbsp;&nbsp;&nbsp;
-<img src="https://raw.githubusercontent.com/andresprados/SPIGA/main/assets/results/football.gif" width=230px height=250px>
 
 </p>
 
