@@ -12,6 +12,7 @@ tmp
 *.pt
 *.egg-info
 *.tar
+*.xlsx
 
 # Build
 /dist
@@ -30,4 +31,5 @@ eval/results
 accuracy.py
 app.py
 colormap.py
-pose_analysis.py
+pose_analysis_facedb.py
+pose_analysis_charlotte.py
