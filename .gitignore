@@ -29,7 +29,7 @@ eval/results
 
 # Test
 accuracy.py
-app.py
+app2.py
 colormap.py
 pose_analysis_facedb.py
 pose_analysis_charlotte.py
